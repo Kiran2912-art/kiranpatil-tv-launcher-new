@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     private static final int BAND_PAD = 22;
     private static final int GAP = 26;
     private static final int TOP_INSET_WHEN_SCROLLED = 64;
+    private static final int GLOW_D = 1000;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService loader = Executors.newSingleThreadExecutor();
@@ -351,9 +352,11 @@ public class MainActivity extends Activity {
         hero.setClipChildren(false);
         heroGlow = new View(this);
         heroGlow.setAlpha(0f);
-        FrameLayout.LayoutParams gl = new FrameLayout.LayoutParams(Ui.dp(900), Ui.dp(520), Gravity.BOTTOM | Gravity.START);
-        gl.leftMargin = left - Ui.dp(380);
-        gl.bottomMargin = -Ui.dp(200);
+        // A square box with the glow's radius equal to half its side, so the gradient fades to
+        // nothing inside the box: no visible edges. Centred on the title, then squashed by scaleY.
+        FrameLayout.LayoutParams gl = new FrameLayout.LayoutParams(Ui.dp(GLOW_D), Ui.dp(GLOW_D), Gravity.BOTTOM | Gravity.START);
+        gl.leftMargin = left + Ui.dp(220) - Ui.dp(GLOW_D / 2f);
+        gl.bottomMargin = Ui.dp(58) - Ui.dp(GLOW_D / 2f);
         hero.addView(heroGlow, gl);
         heroTitle = text(54, Ui.light, Color.WHITE);
         heroTitle.setSingleLine(true);
@@ -478,7 +481,7 @@ public class MainActivity extends Activity {
             GradientDrawable g = new GradientDrawable();
             g.setGradientType(GradientDrawable.RADIAL_GRADIENT);
             g.setColors(new int[]{Ui.withAlpha(color, 0x59), Ui.withAlpha(color, 0x1A), Ui.withAlpha(color, 0)});
-            g.setGradientRadius(Ui.dp(440));
+            g.setGradientRadius(Ui.dp(GLOW_D / 2f));
             g.setGradientCenter(0.5f, 0.5f);
             heroGlow.setBackground(g);
             heroGlow.setScaleY(0.42f); // stretch the circle into a low, wide glow
