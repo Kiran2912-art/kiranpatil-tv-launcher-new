@@ -106,13 +106,13 @@
     ],
     "this launcher": [
       "com.kiranpatil.tvlauncher"
-    ]
+    ],
+    "chromecast (kept on request)": ["com.google.android.apps.mediashell"],
+    "firmware updates (kept on request)": ["*upgrade*", "*.ota*", "*systemupdate*", "*updater*"]
   },
 
   "ask": {
-    "chromecast": ["com.google.android.apps.mediashell"],
-    "miracast / screen mirroring": ["*miracast*", "*screencast*", "*mirror*"],
-    "firmware updates": ["*upgrade*", "*.ota*", "*systemupdate*", "*updater*"]
+    "miracast / screen mirroring": ["*miracast*", "*screencast*", "*mirror*"]
   },
 
   "categories": {
