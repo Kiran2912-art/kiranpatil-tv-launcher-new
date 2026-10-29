@@ -749,14 +749,16 @@ def _am_time(args):
 
 
 def _home_launch_ms():
+    """Cold start of the current Home app: -S stops it first, so TotalTime is always reported."""
+    comp = current_home()
+    if "/" not in comp:
+        return None
     vals = []
     for _ in range(3):
-        sh("am start -a android.settings.SETTINGS")
-        time.sleep(3)
-        v = _am_time("-a android.intent.action.MAIN -c android.intent.category.HOME")
+        v = _am_time("-S -n %s" % comp)
         if v:
             vals.append(v)
-        time.sleep(2)
+        time.sleep(4)
     return round(sum(vals) / len(vals)) if vals else None
 
 
@@ -849,9 +851,25 @@ STAT_ROWS = [
     ("home_app_ram_mb", "Home screen app RAM (MB)", -1),
     ("processes", "Running processes", -1),
     ("cpu_idle_pct", "CPU idle (%)", 1),
-    ("home_launch_ms", "Home appears (ms)", -1),
+    ("home_launch_ms", "Home cold start (ms)", -1),
     ("youtube_cold_start_ms", "YouTube cold start (ms)", -1),
 ]
+
+
+def cmd_homespeed(a):
+    """Measure only the Home cold start and add it to an existing stats run."""
+    path = os.path.join(REPORTS, "stats-%s.json" % a.label)
+    if not os.path.isfile(path):
+        die("No stats run called %s" % a.label)
+    with open(path) as f:
+        r = json.load(f)
+    home = current_home()
+    if r.get("home_app") and r["home_app"] != home:
+        die("Home is now %s but run %s measured %s. Switch Home back first." % (home, a.label, r["home_app"]))
+    r["home_launch_ms"] = _home_launch_ms()
+    with open(path, "w") as f:
+        json.dump(r, f, indent=2)
+    print("Home cold start for %s: %s ms (saved)" % (a.label, r["home_launch_ms"]))
 
 
 def cmd_compare(a):
@@ -914,6 +932,7 @@ def main():
     c = sub.add_parser("stats"); c.add_argument("--label", required=True)
     c.add_argument("--settle", type=int, default=90, help="seconds to wait after boot before measuring")
     c.add_argument("--no-reboot", action="store_true"); c.set_defaults(f=cmd_stats)
+    c = sub.add_parser("homespeed"); c.add_argument("--label", required=True); c.set_defaults(f=cmd_homespeed)
     c = sub.add_parser("compare"); c.add_argument("labels", nargs="*"); c.set_defaults(f=cmd_compare)
     c = sub.add_parser("shell"); c.add_argument("command"); c.add_argument("--timeout", type=int, default=60); c.set_defaults(f=cmd_shell)
 
