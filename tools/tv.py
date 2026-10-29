@@ -22,6 +22,8 @@ Works the same on Windows, macOS and Linux.
   python tools/tv.py push-wallpaper <image>     # wallpaper.jpg or .png
   python tools/tv.py dns status|on|off          # optional ad-blocking Private DNS
   python tools/tv.py closed <ip> [port]         # prove network ADB is really closed
+  python tools/tv.py stats --label <name>      # reboot, settle, measure RAM / speed / load
+  python tools/tv.py compare [label ...]        # side-by-side table of stats runs
   python tools/tv.py shell "<one command>"
 
 Environment: TV=<ip[:port]> overrides the remembered TV, ADB=<path to adb>.
@@ -677,6 +679,207 @@ def cmd_shell(a):
     print(sh(a.command, timeout=a.timeout))
 
 
+# --------------------------------------------------------------------------- performance stats
+
+def _num(txt):
+    import re
+    m = re.search(r"([\d,]+)", txt)
+    return int(m.group(1).replace(",", "")) if m else None
+
+
+def _meminfo():
+    out = sh("dumpsys meminfo", timeout=120)
+    r = {}
+    for line in out.splitlines():
+        t = line.strip()
+        for key in ("Total RAM", "Free RAM", "Used RAM", "Lost RAM"):
+            if t.startswith(key + ":"):
+                r[key.lower().replace(" ", "_") + "_mb"] = round(_num(t.split(":", 1)[1]) / 1024)
+    top = []
+    grab = False
+    for line in out.splitlines():
+        t = line.strip()
+        if t.startswith("Total PSS by process"):
+            grab = True
+            continue
+        if grab:
+            if not t or not t[0].isdigit():
+                if top:
+                    break
+                continue
+            kb = _num(t.split(":")[0])
+            name = t.split(":", 1)[1].split("(pid")[0].strip()
+            top.append([name, round(kb / 1024)])
+            if len(top) >= 12:
+                break
+    r["top_processes_mb"] = top
+    avail = sh("grep MemAvailable /proc/meminfo")
+    r["mem_available_mb"] = round((_num(avail) or 0) / 1024)
+    return r
+
+
+def _pss_mb(pkg):
+    out = sh("dumpsys meminfo %s" % pkg, timeout=60)
+    for line in out.splitlines():
+        t = line.strip()
+        if t.startswith("TOTAL PSS:") or t.startswith("TOTAL:"):
+            v = _num(t.split(":", 1)[1])
+            if v:
+                return round(v / 1024)
+        if t.startswith("TOTAL ") and t.split()[1].replace(",", "").isdigit():
+            return round(int(t.split()[1].replace(",", "")) / 1024)
+    return None
+
+
+def _cpu_idle():
+    import re
+    out = sh("top -b -n 1 -d 1 -m 1", timeout=30)
+    m_idle = re.search(r"(\d+)%idle", out)
+    m_cpu = re.search(r"(\d+)%cpu", out)
+    if m_idle and m_cpu and int(m_cpu.group(1)):
+        return round(100 * int(m_idle.group(1)) / int(m_cpu.group(1)))
+    return None
+
+
+def _am_time(args):
+    import re
+    out = sh("am start -W %s" % args, timeout=60)
+    m = re.search(r"TotalTime: (\d+)", out)
+    return int(m.group(1)) if m else None
+
+
+def _home_launch_ms():
+    vals = []
+    for _ in range(3):
+        sh("am start -a android.settings.SETTINGS")
+        time.sleep(3)
+        v = _am_time("-a android.intent.action.MAIN -c android.intent.category.HOME")
+        if v:
+            vals.append(v)
+        time.sleep(2)
+    return round(sum(vals) / len(vals)) if vals else None
+
+
+def _cold_start_ms(pkg):
+    out = sh("cmd package resolve-activity --brief -a android.intent.action.MAIN "
+             "-c android.intent.category.LEANBACK_LAUNCHER %s" % pkg)
+    comp = [l.strip() for l in out.splitlines() if "/" in l]
+    if not comp:
+        return None
+    vals = []
+    for _ in range(3):
+        sh("am force-stop %s" % pkg)
+        time.sleep(2)
+        v = _am_time("-n %s" % comp[-1])
+        if v:
+            vals.append(v)
+        time.sleep(4)
+        sh("input keyevent KEYCODE_HOME")
+        time.sleep(3)
+    sh("am force-stop %s" % pkg)
+    return round(sum(vals) / len(vals)) if vals else None
+
+
+def _avg(xs):
+    xs = [x for x in xs if x is not None]
+    return round(sum(xs) / len(xs)) if xs else None
+
+
+def cmd_stats(a):
+    """Reboot, let the TV settle, then measure RAM, speed and background load. Same method every time."""
+    import re
+    label = re.sub(r"[^A-Za-z0-9_-]", "-", a.label)
+    r = {"label": label, "taken": dt.datetime.now().isoformat(timespec="seconds")}
+    if not a.no_reboot:
+        print("Rebooting for a clean measurement ...")
+        sh("sync")
+        time.sleep(15)
+        t0 = time.time()
+        adb("reboot", timeout=20)
+        time.sleep(15)
+        host = serial()
+        for _ in range(60):
+            adb("connect", host, s=False, timeout=10)
+            _, st = adb("get-state", timeout=10)
+            if st.strip() == "device" and sh("getprop sys.boot_completed") == "1":
+                break
+            time.sleep(3)
+        else:
+            die("TV did not come back over ADB after the reboot.")
+        r["boot_to_ready_s"] = round(time.time() - t0)
+        print("Boot to ready: %ss. Letting it settle for %ss ..." % (r["boot_to_ready_s"], a.settle))
+        time.sleep(a.settle)
+    home = current_home()
+    home_pkg = home.split("/")[0]
+    r["home_app"] = home
+    samples = []
+    for i in range(3):
+        print("Sample %d/3 ..." % (i + 1))
+        m = _meminfo()
+        m["processes"] = _num(sh("ps -A | wc -l"))
+        m["cpu_idle_pct"] = _cpu_idle()
+        m["home_app_ram_mb"] = _pss_mb(home_pkg)
+        samples.append(m)
+        time.sleep(20)
+    for k in ("total_ram_mb", "used_ram_mb", "free_ram_mb", "lost_ram_mb", "mem_available_mb",
+              "processes", "cpu_idle_pct", "home_app_ram_mb"):
+        r[k] = _avg([s.get(k) for s in samples])
+    r["top_processes_mb"] = samples[-1]["top_processes_mb"]
+    print("Measuring how fast Home appears ...")
+    r["home_launch_ms"] = _home_launch_ms()
+    print("Measuring YouTube cold start ...")
+    r["youtube_cold_start_ms"] = _cold_start_ms("com.google.android.youtube.tv")
+    ensure(REPORTS)
+    path = os.path.join(REPORTS, "stats-%s.json" % label)
+    with open(path, "w") as f:
+        json.dump(r, f, indent=2)
+    for k, v in r.items():
+        if k != "top_processes_mb":
+            print("%-24s %s" % (k, v))
+    print("Top memory users:")
+    for name, mb in r["top_processes_mb"]:
+        print("  %5s MB  %s" % (mb, name))
+    print("\nSaved %s" % path)
+
+
+STAT_ROWS = [
+    ("boot_to_ready_s", "Boot to ready (s)", -1),
+    ("used_ram_mb", "RAM used (MB)", -1),
+    ("mem_available_mb", "RAM available (MB)", 1),
+    ("home_app_ram_mb", "Home screen app RAM (MB)", -1),
+    ("processes", "Running processes", -1),
+    ("cpu_idle_pct", "CPU idle (%)", 1),
+    ("home_launch_ms", "Home appears (ms)", -1),
+    ("youtube_cold_start_ms", "YouTube cold start (ms)", -1),
+]
+
+
+def cmd_compare(a):
+    files = sorted(f for f in os.listdir(REPORTS) if f.startswith("stats-")) if os.path.isdir(REPORTS) else []
+    runs = []
+    for f in files:
+        with open(os.path.join(REPORTS, f)) as fh:
+            runs.append(json.load(fh))
+    if a.labels:
+        runs = [next(r for r in runs if r["label"] == l) for l in a.labels]
+    else:
+        runs.sort(key=lambda r: r["taken"])
+    if len(runs) < 1:
+        die("No stats yet. Run 'tv.py stats --label stock' first.")
+    w = 14
+    print("%-28s" % "" + "".join("%*s" % (w, r["label"][:w - 1]) for r in runs) + ("%*s" % (w, "change") if len(runs) > 1 else ""))
+    for key, name, better in STAT_ROWS:
+        vals = [r.get(key) for r in runs]
+        line = "%-28s" % name + "".join("%*s" % (w, "-" if v is None else v) for v in vals)
+        if len(runs) > 1 and vals[0] is not None and vals[-1] is not None:
+            d = vals[-1] - vals[0]
+            pct = (" (%+d%%)" % round(100 * d / vals[0])) if vals[0] else ""
+            line += "%*s" % (w, "%+d%s" % (d, pct))
+        print(line)
+    print("\nchange = last column minus first. Lower is better except RAM available and CPU idle.")
+    print("Home app: " + " | ".join("%s = %s" % (r["label"], r.get("home_app", "?")) for r in runs))
+
+
 # --------------------------------------------------------------------------- main
 
 def main():
@@ -708,6 +911,10 @@ def main():
     c = sub.add_parser("push-wallpaper"); c.add_argument("file"); c.set_defaults(f=cmd_push_wallpaper)
     c = sub.add_parser("dns"); c.add_argument("action", choices=["status", "on", "off"]); c.set_defaults(f=cmd_dns)
     c = sub.add_parser("closed"); c.add_argument("ip"); c.add_argument("port", nargs="?", type=int, default=5555); c.set_defaults(f=cmd_closed)
+    c = sub.add_parser("stats"); c.add_argument("--label", required=True)
+    c.add_argument("--settle", type=int, default=90, help="seconds to wait after boot before measuring")
+    c.add_argument("--no-reboot", action="store_true"); c.set_defaults(f=cmd_stats)
+    c = sub.add_parser("compare"); c.add_argument("labels", nargs="*"); c.set_defaults(f=cmd_compare)
     c = sub.add_parser("shell"); c.add_argument("command"); c.add_argument("--timeout", type=int, default=60); c.set_defaults(f=cmd_shell)
 
     a = p.parse_args()
