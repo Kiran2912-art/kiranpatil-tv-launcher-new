@@ -212,8 +212,9 @@ def cmd_info(a):
     print("%-28s %s" % ("home candidates", ", ".join(home_candidates())))
     print("%-28s %s" % ("wm size", " | ".join(sh("wm size").splitlines())))
     print("%-28s %s" % ("wm density", " | ".join(sh("wm density").splitlines())))
-    transports = sorted(set(w for w in sh("dumpsys connectivity").split() if w.startswith("Transports:") or w in ("WIFI", "ETHERNET")))
-    print("%-28s %s" % ("network", " ".join(transports) or "?"))
+    import re
+    transports = sorted(set(re.findall(r"Transports: ([A-Z_|]+)", sh("dumpsys connectivity"))))
+    print("%-28s %s" % ("network", ", ".join(transports) or "?"))
     if props["ro.adb.secure"] in ("0", ""):
         print("\nWARNING: ro.adb.secure is %r. Anyone on your Wi-Fi can open a shell while network ADB is on."
               % props["ro.adb.secure"])
@@ -482,8 +483,69 @@ def cmd_set_home(a):
         print("\nVERIFIED: Home opens our launcher.")
     else:
         print("\nNOT verified: Home still opens something else, even if set-home-activity said Success.\n"
-              "Do NOT disable the stock launcher yet. Send me the lines above.")
+              "On Google TV this is normal while its launcher is enabled: use 'tv.py takeover'.")
     take_screenshot(os.path.join(SHOTS, "%s-home.png" % ts()), [], quiet=False)
+
+
+def focused_app():
+    return sh("dumpsys activity activities | grep -E 'mFocusedApp|ResumedActivity'")
+
+
+def cmd_preview(a):
+    """Open our launcher directly (Home unchanged) and screenshot it."""
+    if OUR_PKG not in packages():
+        die("Launcher not installed. Run install first.")
+    sh("am start -n %s" % OUR_HOME)
+    time.sleep(3)
+    take_screenshot(os.path.join(SHOTS, "%s-preview.png" % ts()), [], quiet=False)
+    print("Press Home on the remote to go back to the normal Home screen.")
+
+
+def cmd_takeover(a):
+    """
+    Google TV ignores set-home-activity while its own launcher is enabled. This disables the
+    current Home app, makes ours Home, and verifies it. If anything else (usually the setup
+    wizard's RecoveryActivity) takes Home, it re-enables the stock launcher straight away.
+    """
+    if OUR_PKG not in packages():
+        die("Launcher not installed. Run install first.")
+    if not any(c.startswith(OUR_PKG + "/") for c in home_candidates()):
+        die("Our launcher does not appear as a Home app. Reinstall it.")
+    if not os.path.isfile(os.path.join(STATE, "baseline-disabled.txt")):
+        die("No backup yet. Run 'python tools/tv.py backup' first.")
+    home = current_home()
+    stock = home.split("/")[0]
+    if stock == OUR_PKG:
+        print("Our launcher is already Home.")
+        return
+    status, group = classify(stock, load_rules())
+    if status in ("PROTECTED", "KEEP"):
+        die("Current Home %s is %s (%s); refusing to disable it." % (stock, status, group))
+
+    print("Current Home: %s\nDisabling it so Home falls to our launcher ..." % home)
+    print(sh("pm disable-user --user 0 %s" % stock))
+    time.sleep(2)
+    print(sh("cmd package set-home-activity %s" % OUR_HOME))
+    sh("input keyevent KEYCODE_HOME")
+    time.sleep(3)
+    f = focused_app()
+    print(f)
+    if OUR_PKG in f:
+        log = read_disabled_log()
+        if stock not in log:
+            write_disabled_log(log + [stock])
+        print("\nVERIFIED: Home opens our launcher. %s is disabled (restore: tv.py restore %s)." % (stock, stock))
+        print("Next: python tools/tv.py reboot-check   (Home must still be ours after a reboot)")
+        take_screenshot(os.path.join(SHOTS, "%s-takeover.png" % ts()), [], quiet=False)
+        return
+
+    print("\nSomething else took Home (see above). Undoing: re-enabling %s ..." % stock)
+    print(sh("pm enable --user 0 %s" % stock))
+    time.sleep(2)
+    sh("input keyevent KEYCODE_HOME")
+    time.sleep(2)
+    print(focused_app())
+    die("Takeover reverted; the TV is back to its original Home. Send me the output above.")
 
 
 def press(keys):
@@ -612,6 +674,8 @@ def main():
     sub.add_parser("reboot-check").set_defaults(f=cmd_reboot_check)
     c = sub.add_parser("install"); c.add_argument("apk"); c.set_defaults(f=cmd_install)
     sub.add_parser("set-home").set_defaults(f=cmd_set_home)
+    sub.add_parser("preview").set_defaults(f=cmd_preview)
+    sub.add_parser("takeover").set_defaults(f=cmd_takeover)
     c = sub.add_parser("screenshot"); c.add_argument("out"); c.add_argument("keys", nargs="*"); c.set_defaults(f=cmd_screenshot)
     c = sub.add_parser("key"); c.add_argument("keys", nargs="+"); c.set_defaults(f=cmd_key)
     c = sub.add_parser("push-config"); c.add_argument("file"); c.set_defaults(f=cmd_push_config)
