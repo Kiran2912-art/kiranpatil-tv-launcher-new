@@ -1,6 +1,5 @@
 {
   "_help": "Rules used by tv.py. 'protected' can never be disabled by tv.py (the TV may not boot). 'keep' is what the TV or Kiran needs; tv.py refuses these too unless the package is removed from this list on purpose. 'ask' needs an explicit yes before disabling. Entries ending in * are prefixes.",
-
   "protected": {
     "android core (boot)": [
       "android",
@@ -67,9 +66,13 @@
       "com.android.tv",
       "com.google.android.tv",
       "com.android.tv.inputs*"
+    ],
+    "factory menus (never touch or open)": [
+      "mediatek.factorymenu.ui",
+      "*factory*",
+      "com.mstar.android.tv.disclaimercustomization"
     ]
   },
-
   "keep": {
     "remote, bluetooth, keyboard": [
       "com.android.bluetooth",
@@ -107,18 +110,108 @@
     "this launcher": [
       "com.kiranpatil.tvlauncher"
     ],
-    "chromecast (kept on request)": ["com.google.android.apps.mediashell"],
-    "firmware updates (kept on request)": ["*upgrade*", "*.ota*", "*systemupdate*", "*updater*"]
+    "chromecast (kept on request)": [
+      "com.google.android.apps.mediashell"
+    ],
+    "firmware updates (kept on request)": [
+      "*upgrade*",
+      "*.ota*",
+      "*systemupdate*",
+      "*updater*",
+      "com.xiaomi.mitv.updateservice",
+      "com.mitv.ABUpdateStatus",
+      "com.mitv.upgrader"
+    ],
+    "xiaomi tv essentials (picture, sound, inputs, remote)": [
+      "com.mitv.livetv",
+      "com.mitv.livetv.*",
+      "com.xiaomi.gtv.settings",
+      "com.xiaomi.tvqs.overseas",
+      "mitv.service",
+      "com.mi.bluetooth",
+      "com.dolby.android.audio.service",
+      "com.mediatek.network",
+      "com.mediatek.android.boot.appsplashscreen",
+      "com.xiaomi.mitv.scenemode",
+      "com.google.android.tv.assistant"
+    ]
   },
-
   "ask": {
-    "miracast / screen mirroring": ["*miracast*", "*screencast*", "*mirror*"]
+    "miracast / screen mirroring": [
+      "*miracast*",
+      "*screencast*",
+      "*mirror*",
+      "*smartshare*",
+      "*wfdsink*",
+      "com.mitv.milinkservice"
+    ],
+    "usb photos / video / music": [
+      "com.mitv.gallery",
+      "com.mitv.videoplayer",
+      "com.xiaomi.mimusic2",
+      "com.xiaomi.mitv.mediaexplorer"
+    ],
+    "apps you installed or that were pre-installed as promos": [
+      "org.videolan.vlc",
+      "com.fancode.tv",
+      "com.suntv.sunnxt",
+      "tv.airtel.xstream.tvapp"
+    ],
+    "screensaver (ambient mode)": [
+      "com.google.android.apps.tv.dreamx"
+    ]
   },
-
   "categories": {
-    "telemetry / analytics": ["*analytics*", "*.stat*", "*statistic*", "*tracker*", "*bugreport*", "*crash*", "*feedback*", "*.log*", "*report*", "*daemon.stat*", "*.dot*", "*xmsf*"],
-    "content / ads": ["*patchwall*", "*tvhome*", "*recommend*", "*.ad", "*.ads*", "*adservice*", "*adsolution*", "*advert*", "*promo*", "*partnerbrowser*", "*.video*", "*content*", "*voddb*", "*mitv.mivideo*", "*store*", "*mall*", "*.cms*"],
-    "background services": ["*cleaner*", "*cleanmaster*", "*share*", "*cast*", "*dlna*", "*airplay*", "*assist*", "*smarthome*", "*iot*", "*account*", "*cloud*", "*payment*", "*wallet*"],
-    "stock launcher": ["*launcher*"]
+    "telemetry / analytics": [
+      "*analytics*",
+      "*.stat*",
+      "*statistic*",
+      "*tracker*",
+      "*bugreport*",
+      "*crash*",
+      "*feedback*",
+      "*.log*",
+      "*report*",
+      "*daemon.stat*",
+      "*.dot*",
+      "*xmsf*"
+    ],
+    "content / ads": [
+      "*patchwall*",
+      "*tvhome*",
+      "*recommend*",
+      "*.ad",
+      "*.ads*",
+      "*adservice*",
+      "*adsolution*",
+      "*advert*",
+      "*promo*",
+      "*partnerbrowser*",
+      "*.video*",
+      "*content*",
+      "*voddb*",
+      "*mitv.mivideo*",
+      "*store*",
+      "*mall*",
+      "*.cms*"
+    ],
+    "background services": [
+      "*cleaner*",
+      "*cleanmaster*",
+      "*share*",
+      "*cast*",
+      "*dlna*",
+      "*airplay*",
+      "*assist*",
+      "*smarthome*",
+      "*iot*",
+      "*account*",
+      "*cloud*",
+      "*payment*",
+      "*wallet*"
+    ],
+    "stock launcher": [
+      "*launcher*"
+    ]
   }
 }
