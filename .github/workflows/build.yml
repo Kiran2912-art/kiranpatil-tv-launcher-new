@@ -1,0 +1,48 @@
+name: Build launcher APK
+
+on:
+  push:
+    branches: [main]
+    paths: ["launcher/**", ".github/workflows/build.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build debug APK
+        run: gradle -p launcher assembleDebug --no-daemon
+
+      - name: Name the APK
+        run: |
+          mkdir -p out
+          cp launcher/app/build/outputs/apk/debug/app-debug.apk out/kiran-tv-launcher.apk
+          sha256sum out/kiran-tv-launcher.apk | tee out/kiran-tv-launcher.apk.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kiran-tv-launcher
+          path: out/*
+
+      - name: Publish as the "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest out/kiran-tv-launcher.apk out/kiran-tv-launcher.apk.sha256 \
+            --title "Latest launcher build" \
+            --notes "Built from ${GITHUB_SHA::7}. Install: python tools/tv.py install kiran-tv-launcher.apk"

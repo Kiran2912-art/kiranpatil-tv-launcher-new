@@ -1,0 +1,124 @@
+{
+  "_help": "Rules used by tv.py. 'protected' can never be disabled by tv.py (the TV may not boot). 'keep' is what the TV or Kiran needs; tv.py refuses these too unless the package is removed from this list on purpose. 'ask' needs an explicit yes before disabling. Entries ending in * are prefixes.",
+
+  "protected": {
+    "android core (boot)": [
+      "android",
+      "com.android.systemui",
+      "com.android.shell",
+      "com.android.phone",
+      "com.android.settings",
+      "com.android.tv.settings",
+      "com.android.permissioncontroller",
+      "com.google.android.permissioncontroller",
+      "com.android.packageinstaller",
+      "com.google.android.packageinstaller",
+      "com.android.extservices",
+      "com.google.android.ext.services",
+      "android.ext.services",
+      "com.android.ext.shared",
+      "com.google.android.ext.shared",
+      "android.ext.shared",
+      "com.android.modulemetadata",
+      "com.google.android.modulemetadata",
+      "com.google.android.overlay.modules*",
+      "com.android.providers.settings",
+      "com.android.providers.media",
+      "com.android.providers.media.module",
+      "com.google.android.providers.media.module",
+      "com.android.providers.downloads",
+      "com.android.providers.downloads.ui",
+      "com.android.providers.tv",
+      "com.android.providers.telephony",
+      "com.android.location.fused",
+      "com.android.networkstack*",
+      "com.google.android.networkstack*",
+      "com.android.wifi*",
+      "com.android.server.*",
+      "com.android.webview",
+      "com.google.android.webview",
+      "com.android.certinstaller",
+      "com.android.keychain",
+      "com.android.inputdevices",
+      "com.android.externalstorage",
+      "com.android.sharedstoragebackup",
+      "com.android.statementservice",
+      "com.android.se",
+      "com.android.cts.priv.ctsshim",
+      "com.android.tethering*",
+      "com.google.android.tethering*",
+      "com.android.connectivity.resources",
+      "com.google.android.connectivity.resources",
+      "com.android.mediaprovider*",
+      "com.android.media.module*"
+    ],
+    "tv middleware (picture, HDMI, tuner)": [
+      "com.cltv.mal",
+      "com.mediatek.tis",
+      "com.mediatek.tv.service",
+      "com.mediatek.tv.agent",
+      "com.mediatek.tv*",
+      "com.mediatek.wwtv*",
+      "com.mediatek.dtv*",
+      "com.droidlogic*",
+      "com.amlogic*",
+      "com.mstar*",
+      "com.realtek*",
+      "com.android.tv",
+      "com.google.android.tv",
+      "com.android.tv.inputs*"
+    ]
+  },
+
+  "keep": {
+    "remote, bluetooth, keyboard": [
+      "com.android.bluetooth",
+      "com.google.android.bluetooth*",
+      "com.google.android.tv.remote.service",
+      "com.google.android.tv.remote*",
+      "com.google.android.leanback.ime",
+      "com.google.android.inputmethod*",
+      "com.android.inputmethod*"
+    ],
+    "google play": [
+      "com.android.vending",
+      "com.google.android.gms",
+      "com.google.android.gsf",
+      "com.google.android.gsf.login",
+      "com.google.android.syncadapters*",
+      "com.google.android.backuptransport"
+    ],
+    "google assistant (kept on request)": [
+      "com.google.android.katniss",
+      "com.google.android.speech.pumpkin",
+      "com.google.android.tts",
+      "com.google.android.googlequicksearchbox"
+    ],
+    "streaming apps in use": [
+      "in.startv.hotstar*",
+      "com.netflix.ninja",
+      "com.amazon.amazonvideo.livingroom",
+      "com.sonyliv*",
+      "com.google.android.youtube.tv",
+      "com.google.android.youtube.tvmusic",
+      "com.graymatrix.did*",
+      "com.zee5*"
+    ],
+    "this launcher": [
+      "com.kiranpatil.tvlauncher"
+    ]
+  },
+
+  "ask": {
+    "chromecast": ["com.google.android.apps.mediashell"],
+    "miracast / screen mirroring": ["*miracast*", "*screencast*", "*mirror*"],
+    "firmware updates": ["*upgrade*", "*.ota*", "*systemupdate*", "*updater*"]
+  },
+
+  "categories": {
+    "telemetry / analytics": ["*analytics*", "*.stat*", "*statistic*", "*tracker*", "*bugreport*", "*crash*", "*feedback*", "*.log*", "*report*", "*daemon.stat*", "*.dot*", "*xmsf*"],
+    "content / ads": ["*patchwall*", "*tvhome*", "*recommend*", "*.ad", "*.ads*", "*adservice*", "*adsolution*", "*advert*", "*promo*", "*partnerbrowser*", "*.video*", "*content*", "*voddb*", "*mitv.mivideo*", "*store*", "*mall*", "*.cms*"],
+    "background services": ["*cleaner*", "*cleanmaster*", "*share*", "*cast*", "*dlna*", "*airplay*", "*assist*", "*smarthome*", "*iot*", "*account*", "*cloud*", "*payment*", "*wallet*"],
+    "stock launcher": ["*launcher*"]
+  }
+}

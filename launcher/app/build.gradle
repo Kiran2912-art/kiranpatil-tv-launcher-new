@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.kiranpatil.tvlauncher'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.kiranpatil.tvlauncher'
+        // 26 = Android 8.0. The MiTV-MOOR2 runs Android 11 (SDK 30).
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // One fixed key, kept in this repo, so every build (GitHub Actions or local)
+    // can update the app installed on the TV instead of failing with a signature mismatch.
+    signingConfigs {
+        debug {
+            storeFile file('../keystore/tv-launcher.keystore')
+            storePassword 'tvlauncher'
+            keyAlias 'tvlauncher'
+            keyPassword 'tvlauncher'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// No dependencies: plain Android framework only, to keep the APK tiny and RAM use low.

@@ -1,0 +1,23 @@
+# Build output
+launcher/.gradle/
+launcher/build/
+launcher/app/build/
+launcher/local.properties
+*.apk
+out/
+
+# Data pulled from the TV: device serials, settings and screenshots stay on your computer
+backups/
+state/
+shots/
+reports/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS / IDE
+.DS_Store
+.idea/
+*.iml

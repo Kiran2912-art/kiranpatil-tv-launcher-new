@@ -1,0 +1,21 @@
+{
+  "_help": "Dock and grid settings. Each dock slot lists package names in order of preference; the first one installed on the TV is used. A copy pushed to /sdcard/Android/data/com.kiranpatil.tvlauncher/files/config.json overrides this file without a rebuild (see README).",
+
+  "columns": 5,
+
+  "dock_apps": [
+    ["com.google.android.youtube.tv", "com.google.android.youtube.tvunplugged"],
+    ["com.netflix.ninja"],
+    ["com.amazon.amazonvideo.livingroom"],
+    ["in.startv.hotstar", "in.startv.hotstaronly"],
+    ["com.sonyliv", "com.sonyliv.androidtv"]
+  ],
+
+  "hidden_apps": [],
+
+  "greeting_name": "",
+
+  "live_tv_package": "",
+
+  "input_labels": {}
+}
