@@ -90,6 +90,8 @@ public class MainActivity extends Activity {
 
     private ConnectivityManager.NetworkCallback netCallback;
     private boolean receiversOn;
+    /** False until the dock and grid exist; focus is not placed (or remembered) before that. */
+    private boolean appsReady;
 
     // ------------------------------------------------------------------ lifecycle
 
@@ -122,7 +124,7 @@ public class MainActivity extends Activity {
         super.onResume();
         updateClock();
         updateNetwork();
-        if (getCurrentFocus() == null) main.post(this::restoreFocus);
+        if (appsReady && getCurrentFocus() == null) main.post(this::restoreFocus);
     }
 
     @Override
@@ -282,7 +284,7 @@ public class MainActivity extends Activity {
             p.animate().scaleX(has ? 1.06f : 1f).scaleY(has ? 1.06f : 1f).setDuration(150).start();
             if (has) {
                 lastPill = index;
-                lastPos = (TileView.Pos) v.getTag();
+                if (appsReady) lastPos = (TileView.Pos) v.getTag();
                 highlight.show(false);
                 scrollTo(0);
                 topBar.animate().alpha(1f).setDuration(200).start();
@@ -332,7 +334,9 @@ public class MainActivity extends Activity {
 
     private void buildApps(Apps.Result r) {
         if (isFinishing()) return;
-        TileView.Pos keep = lastPos;
+        // A Settings/Inputs pill is never the starting point after a (re)build: start on the dock.
+        TileView.Pos keep = lastPos.section == TileView.Pos.TOP
+                ? new TileView.Pos(TileView.Pos.DOCK, 0, lastDockCol) : lastPos;
         content.removeAllViews();
         dock.clear();
         grid.clear();
@@ -417,6 +421,7 @@ public class MainActivity extends Activity {
         }
 
         lastPos = keep;
+        appsReady = true;
         scroller.post(this::restoreFocus);
     }
 
