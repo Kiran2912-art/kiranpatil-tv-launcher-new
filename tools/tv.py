@@ -491,6 +491,16 @@ def focused_app():
     return sh("dumpsys activity activities | grep -E 'mFocusedApp|ResumedActivity'")
 
 
+SETUPWRAITH = "com.google.android.tungsten.setupwraith"
+
+
+def wifi_owners():
+    """Apps that created the saved Wi-Fi networks. A network created by the setup wizard is
+    deleted by Android the moment the wizard is disabled."""
+    out = sh("dumpsys wifi | grep -o 'cname=[^ ]*'")
+    return sorted(set(l.strip() for l in out.splitlines() if l.strip().startswith("cname=")))
+
+
 def cmd_preview(a):
     """Open our launcher directly (Home unchanged) and screenshot it."""
     if OUR_PKG not in packages():
@@ -522,8 +532,21 @@ def cmd_takeover(a):
     if status in ("PROTECTED", "KEEP"):
         die("Current Home %s is %s (%s); refusing to disable it." % (stock, status, group))
 
+    extra = []
+    if a.with_setupwraith:
+        owners = wifi_owners()
+        print("Saved Wi-Fi networks were created by: %s" % (", ".join(owners) or "(could not read)"))
+        if not owners:
+            die("Could not read who saved the Wi-Fi network, so the setup wizard is not safe to disable.")
+        if any("setupwraith" in o for o in owners):
+            die("Your Wi-Fi network was saved by the setup wizard. Disabling the wizard would make Android\n"
+                "delete it: the TV would drop off Wi-Fi and ADB. First, on the TV: Settings > Network & Internet >\n"
+                "your network > Forget network, then join it again. Then reconnect (tv.py connect) and re-run.")
+        extra = [SETUPWRAITH]
+
     print("Current Home: %s\nDisabling it so Home falls to our launcher ..." % home)
-    print(sh("pm disable-user --user 0 %s" % stock))
+    for p in [stock] + extra:
+        print(sh("pm disable-user --user 0 %s" % p))
     time.sleep(2)
     print(sh("cmd package set-home-activity %s" % OUR_HOME))
     sh("input keyevent KEYCODE_HOME")
@@ -532,15 +555,16 @@ def cmd_takeover(a):
     print(f)
     if OUR_PKG in f:
         log = read_disabled_log()
-        if stock not in log:
-            write_disabled_log(log + [stock])
-        print("\nVERIFIED: Home opens our launcher. %s is disabled (restore: tv.py restore %s)." % (stock, stock))
+        write_disabled_log(log + [p for p in [stock] + extra if p not in log])
+        off = " ".join([stock] + extra)
+        print("\nVERIFIED: Home opens our launcher. Disabled: %s (undo: tv.py restore %s)." % (off, off))
         print("Next: python tools/tv.py reboot-check   (Home must still be ours after a reboot)")
         take_screenshot(os.path.join(SHOTS, "%s-takeover.png" % ts()), [], quiet=False)
         return
 
-    print("\nSomething else took Home (see above). Undoing: re-enabling %s ..." % stock)
-    print(sh("pm enable --user 0 %s" % stock))
+    print("\nSomething else took Home (see above). Undoing: re-enabling %s ..." % ", ".join([stock] + extra))
+    for p in [stock] + extra:
+        print(sh("pm enable --user 0 %s" % p))
     time.sleep(2)
     sh("input keyevent KEYCODE_HOME")
     time.sleep(2)
@@ -675,7 +699,9 @@ def main():
     c = sub.add_parser("install"); c.add_argument("apk"); c.set_defaults(f=cmd_install)
     sub.add_parser("set-home").set_defaults(f=cmd_set_home)
     sub.add_parser("preview").set_defaults(f=cmd_preview)
-    sub.add_parser("takeover").set_defaults(f=cmd_takeover)
+    c = sub.add_parser("takeover"); c.add_argument("--with-setupwraith", action="store_true",
+        help="also disable the Google TV setup wizard, after checking it does not own the saved Wi-Fi")
+    c.set_defaults(f=cmd_takeover)
     c = sub.add_parser("screenshot"); c.add_argument("out"); c.add_argument("keys", nargs="*"); c.set_defaults(f=cmd_screenshot)
     c = sub.add_parser("key"); c.add_argument("keys", nargs="+"); c.set_defaults(f=cmd_key)
     c = sub.add_parser("push-config"); c.add_argument("file"); c.set_defaults(f=cmd_push_config)
