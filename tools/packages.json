@@ -134,17 +134,17 @@
       "com.mediatek.android.boot.appsplashscreen",
       "com.xiaomi.mitv.scenemode",
       "com.google.android.tv.assistant"
-    ]
-  },
-  "ask": {
-    "miracast / screen mirroring": [
+    ],
+    "screen mirroring / wireless display (kept: laptop extended screen)": [
       "*miracast*",
       "*screencast*",
       "*mirror*",
       "*smartshare*",
       "*wfdsink*",
       "com.mitv.milinkservice"
-    ],
+    ]
+  },
+  "ask": {
     "usb photos / video / music": [
       "com.mitv.gallery",
       "com.mitv.videoplayer",
